@@ -11,7 +11,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.25
 	github.com/aws/aws-sdk-go-v2/service/autoscaling v1.51.8
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.201.1
-	github.com/nginx/nginx-plus-go-client/v2 v2.2.0
+	github.com/nginx/nginx-plus-go-client/v2 v2.3.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
