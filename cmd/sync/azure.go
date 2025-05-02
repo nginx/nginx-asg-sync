@@ -203,7 +203,7 @@ func validateAzureConfig(cfg *azureConfig) error {
 		if ups.Port == 0 {
 			return fmt.Errorf(upstreamPortErrorMsgFormat, ups.Name)
 		}
-		if ups.Kind == "" || !(ups.Kind == "http" || ups.Kind == "stream") {
+		if ups.Kind == "" || (ups.Kind != "http" && ups.Kind != "stream") {
 			return fmt.Errorf(upstreamKindErrorMsgFormat, ups.Name)
 		}
 		if ups.MaxConns < 0 {
