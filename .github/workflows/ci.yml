@@ -74,7 +74,7 @@ jobs:
           go-version: stable
 
       - name: Draft Release Notes
-        uses: lucacome/draft-release@f15262dc3ac8c3efbf09a8ce5406cd0fc47aabb1 # v1.2.2
+        uses: lucacome/draft-release@0ebb400b90474a1b791602046abf8394e9f5402d # v2.0.2
         with:
           minor-label: "enhancement"
           major-label: "change"
