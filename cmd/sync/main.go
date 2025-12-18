@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	nginx "github.com/nginx/nginx-plus-go-client/v2/client"
+	nginx "github.com/nginx/nginx-plus-go-client/v3/client"
 )
 
 var (
