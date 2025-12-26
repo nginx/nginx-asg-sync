@@ -61,7 +61,7 @@ sync_interval: 5s
 cloud_provider: Azure
 subscription_id: my_subscription_id
 resource_group_name: my_resource_group
-# Optional: custom headers for authentication or other requirements
+# Optional: custom headers for NGINX+ requests, for authentication or other requirements
 # custom_headers:
 #   Content-Type: application/json
 #   Authorization: ApiKey your_base64_encoded_api_key
@@ -92,7 +92,7 @@ upstreams:
 - The `subscription_id` key defines the Azure unique subscription id that identifies your Azure subscription.
 - The `resource_group_name` key defines the Azure resource group of your Virtual Machine Scale Set and Virtual Machine
   for NGINX Plus.
-- The `custom_headers` key (optional) defines custom HTTP headers to be sent with API requests. This is useful for:
+- The `custom_headers` key (optional) defines custom HTTP headers to be sent with NGINX+ API requests. This is useful for:
   - NGINXaaS for Azure: Requires `Content-Type: application/json` and `Authorization: ApiKey <base64_dataplane_key>` headers
   - Custom authentication or other API requirements
   - Any additional headers needed by your specific NGINX Plus setup

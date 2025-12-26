@@ -3,10 +3,6 @@
 # cloud_provider: AWS
 # region: us-west-2
 # api_endpoint: http://127.0.0.1:8080/api
-# Optional: custom headers for authentication or other requirements
-# custom_headers:
-#   Content-Type: application/json
-#   Authorization: ApiKey your_base64_encoded_api_key
 # sync_interval: 5s
 # upstreams:
 #   - name: backend-one
@@ -29,10 +25,6 @@
 # resource_group_name: my_resource_group
 # api_endpoint: http://127.0.0.1:8080/api
 # sync_interval: 5s
-# Optional: custom headers for authentication or other requirements
-# custom_headers:
-#   Content-Type: application/json
-#   Authorization: ApiKey your_base64_encoded_api_key
 # upstreams:
 #   - name: backend-one
 #     virtual_machine_scale_set: backend-one-group
