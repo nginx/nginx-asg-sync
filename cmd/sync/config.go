@@ -10,9 +10,10 @@ import (
 
 // commonConfig stores the configuration parameters common to all providers.
 type commonConfig struct {
-	APIEndpoint   string        `yaml:"api_endpoint"`
-	CloudProvider string        `yaml:"cloud_provider"`
-	SyncInterval  time.Duration `yaml:"sync_interval"`
+	CustomHeaders map[string]string `yaml:"custom_headers,omitempty"`
+	APIEndpoint   string            `yaml:"api_endpoint"`
+	CloudProvider string            `yaml:"cloud_provider"`
+	SyncInterval  time.Duration     `yaml:"sync_interval"`
 }
 
 func parseCommonConfig(data []byte) (*commonConfig, error) {
