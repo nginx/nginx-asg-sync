@@ -46,20 +46,6 @@ jobs:
         with:
           actionlint_flags: -shellcheck ""
 
-  markdown-lint:
-    name: Markdown Lint
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Lint Markdown
-        uses: DavidAnson/markdownlint-cli2-action@05f32210e84442804257b2a6f20b273450ec8265 # v19.1.0
-        with:
-          config: .markdownlint-cli2.yaml
-          globs: "**/*.md"
-          fix: false
-
   yaml-lint:
     name: YAML lint
     runs-on: ubuntu-24.04
