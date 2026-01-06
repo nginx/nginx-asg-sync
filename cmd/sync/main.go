@@ -71,10 +71,6 @@ func main() {
 	}
 
 	upstreams := cloudProviderClient.GetUpstreams()
-	if err != nil {
-		log.Printf("Couldn't get Upstreams: %v", err)
-		os.Exit(10)
-	}
 
 	for _, ups := range upstreams {
 		ctx := context.TODO()
