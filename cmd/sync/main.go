@@ -216,7 +216,7 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 func NewHTTPClient(cfg *commonConfig) *http.Client {
-	var rt http.RoundTripper = &http.Transport{}
+	rt := http.DefaultTransport
 	if h := NewHeaders(cfg); len(h) > 0 {
 		rt = &headerTransport{headers: h, transport: rt}
 	}
