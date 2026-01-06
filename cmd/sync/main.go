@@ -21,7 +21,10 @@ var (
 	version    string
 )
 
-const connTimeoutInSecs = 10
+const (
+	connTimeoutInSecs = 10
+	maxHeaders        = 100
+)
 
 func main() {
 	flag.Parse()
@@ -63,7 +66,7 @@ func main() {
 		os.Exit(10)
 	}
 
-	httpClient := &http.Client{Timeout: connTimeoutInSecs * time.Second}
+	httpClient := NewHTTPClient(commonConfig)
 	nginxClient, err := nginx.NewNginxClient(commonConfig.APIEndpoint, nginx.WithHTTPClient(httpClient))
 	if err != nil {
 		log.Printf("Couldn't create NGINX client: %v", err)
@@ -184,4 +187,50 @@ func getStreamUpstreamServerAddresses(server []nginx.StreamUpstreamServer) []str
 		streamUpstreamServerAddr = append(streamUpstreamServerAddr, s.Server)
 	}
 	return streamUpstreamServerAddr
+}
+
+// headerTransport wraps an http.RoundTripper and adds custom headers to all requests.
+type headerTransport struct {
+	headers   http.Header
+	transport http.RoundTripper
+}
+
+func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if len(t.headers)+len(req.Header) > maxHeaders {
+		return nil, fmt.Errorf("number of headers in request exceeds the maximum allowed (%d)", maxHeaders)
+	}
+	clonedReq := req.Clone(req.Context())
+
+	for key, values := range t.headers {
+		for _, value := range values {
+			clonedReq.Header.Add(key, value)
+		}
+	}
+
+	resp, err := t.transport.RoundTrip(clonedReq)
+	if err != nil {
+		return nil, fmt.Errorf("headerTransport RoundTrip failed: %w", err)
+	}
+
+	return resp, nil
+}
+
+func NewHTTPClient(cfg *commonConfig) *http.Client {
+	rt := http.DefaultTransport
+	if h := NewHeaders(cfg); len(h) > 0 {
+		rt = &headerTransport{headers: h, transport: rt}
+	}
+	return &http.Client{
+		Transport: rt,
+		Timeout:   connTimeoutInSecs * time.Second,
+	}
+}
+
+func NewHeaders(cfg *commonConfig) http.Header {
+	headers := http.Header{}
+
+	for key, value := range cfg.CustomHeaders {
+		headers.Set(key, value)
+	}
+	return headers
 }

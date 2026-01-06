@@ -5,7 +5,9 @@
 ## Table of Contents
 
 - [Setting up Access to Azure API](#setting-up-access-to-azure-api)
+  - [Creating a Custom Role for nginx-asg-sync](#creating-a-custom-role-for-nginx-asg-sync)
 - [nginx-asg-sync Configuration](#nginx-asg-sync-configuration)
+- [nginx-asg-sync Configuration for NGINXaaS for Azure](#nginx-asg-sync-configuration-for-nginxaas-for-azure)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
@@ -16,9 +18,38 @@ access the Azure API, nginx-asg-sync must have credentials. To provide credentia
 
 1. Create the NGINX Plus VM with the system or user
    [identity](https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/qs-configure-portal-windows-vm#system-assigned-managed-identity).
-2. Create a `Reader` [role](https://docs.microsoft.com/en-us/azure/role-based-access-control/overview) for the selected
-   subscription or resource group and [assign it to the](https://docs.microsoft.com/en-gb/azure/role-based-access-control/role-assignments-portal#add-a-role-assignment)
+2. Create a custom [role](https://docs.microsoft.com/en-us/azure/role-based-access-control/custom-roles) with minimal
+   required permissions for the selected subscription or resource group and
+   [assign it to the](https://docs.microsoft.com/en-gb/azure/role-based-access-control/role-assignments-portal#add-a-role-assignment)
    identity of the NGINX Plus VM.
+
+### Creating a Custom Role for nginx-asg-sync
+
+Instead of using the broad `Reader` role, create a custom role with only the necessary permissions for nginx-asg-sync:
+
+```json
+{
+    "id": "/subscriptions/{your-subscription-id}/providers/Microsoft.Authorization/roleDefinitions/{role-definition-id}",
+    "properties": {
+        "roleName": "nginx-asg-sync-role",
+        "description": "Custom role for nginx-asg-sync to read VMSS and network interfaces",
+        "assignableScopes": [
+            "/subscriptions/{your-subscription-id}"
+        ],
+        "permissions": [
+            {
+                "actions": [
+                    "Microsoft.Compute/virtualMachineScaleSets/read",
+                    "Microsoft.Compute/virtualMachineScaleSets/networkInterfaces/read"
+                ],
+                "notActions": [],
+                "dataActions": [],
+                "notDataActions": []
+            }
+        ]
+    }
+}
+```
 
 ## nginx-asg-sync Configuration
 
@@ -30,6 +61,10 @@ sync_interval: 5s
 cloud_provider: Azure
 subscription_id: my_subscription_id
 resource_group_name: my_resource_group
+# Optional: custom headers for NGINX+ requests, for authentication or other requirements
+# custom_headers:
+#   Content-Type: application/json
+#   Authorization: ApiKey your_base64_encoded_api_key
 upstreams:
   - name: backend-one
     virtual_machine_scale_set: backend-one-group
@@ -57,6 +92,10 @@ upstreams:
 - The `subscription_id` key defines the Azure unique subscription id that identifies your Azure subscription.
 - The `resource_group_name` key defines the Azure resource group of your Virtual Machine Scale Set and Virtual Machine
   for NGINX Plus.
+- The `custom_headers` key (optional) defines custom HTTP headers to be sent with NGINX+ API requests. This is useful for:
+  - NGINXaaS for Azure: Requires `Content-Type: application/json` and `Authorization: ApiKey <base64_dataplane_key>` headers
+  - Custom authentication or other API requirements
+  - Any additional headers needed by your specific NGINX Plus setup
 - The `upstreams` key defines the list of upstream groups. For each upstream group we specify:
   - `name` – The name we specified for the upstream block in the NGINX Plus configuration.
   - `virtual_machine_scale_set` – The name of the corresponding Virtual Machine Scale Set.
@@ -73,3 +112,12 @@ upstreams:
   - `slow_start` – The slow start allows an upstream server to gradually recover its weight from 0 to its nominal value
     after it has been recovered or became available or when the server becomes available after a period of time it was
     considered unavailable. By default, the slow start is disabled.
+
+## nginx-asg-sync Configuration for NGINXaaS for Azure
+
+For [NGINXaaS for Azure](https://docs.nginx.com/nginxaas/azure), additional headers are required to authenticate
+with the [NGINXaaS For Azure Dataplane API](
+https://docs.nginx.com/nginxaas/azure/loadbalancer-kubernetes/#view-nginxaas-data-plane-api-endpoint-using-the-azure-portal
+).
+
+See the complete configuration guide and examples: [nginx-asg-sync Configuration for NGINXaaS](nginxforazure.md)

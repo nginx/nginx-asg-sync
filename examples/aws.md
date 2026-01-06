@@ -28,6 +28,9 @@ api_endpoint: http://127.0.0.1:8080/api
 sync_interval: 5s
 cloud_provider: AWS
 profile: default
+# Optional: custom headers for NGINX+ requests, for authentication or other requirements
+# custom_headers:
+#   Content-Type: application/json
 upstreams:
   - name: backend-one
     autoscaling_group: backend-one-group
@@ -53,6 +56,7 @@ upstreams:
   every 5 seconds. The value is a string that represents a duration (e.g., `5s`). The maximum unit is hours.
 - The `cloud_provider` key defines a cloud provider that will be used. The default is `AWS`. This means the key can be
   empty if using AWS. Possible values are: `AWS`, `Azure`.
+- The `custom_headers` key (optional) defines custom HTTP headers to be sent with NGINX+ API requests.
 - The `region` key defines the AWS region where we deploy NGINX Plus and the Auto Scaling groups. Setting `region` to
   `self` will use the EC2 Metadata service to retrieve the region of the current instance.
 - The optional `profile` key specifies the AWS profile to use.
