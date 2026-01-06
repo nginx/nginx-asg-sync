@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	network "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v6"
+	network "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8"
 )
 
 type testInputAzure struct {
