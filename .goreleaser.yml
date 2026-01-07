@@ -101,12 +101,6 @@ signs:
       - "${artifact}"
       - "--yes"
 
-announce:
-  slack:
-    enabled: true
-    channel: "#announcements"
-    message_template: "NGINX Plus Integration with Cloud Autoscaling {{ .Tag }} is out! Check it out: {{ .ReleaseURL }}"
-
 milestones:
   - close: true
 
