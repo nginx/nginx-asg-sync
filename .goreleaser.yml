@@ -37,10 +37,6 @@ dockers_v2:
       - LICENSE
       - README.md
     labels:
-      "org.opencontainers.image.description": |-
-        NGINX Plus Integration with Cloud Autoscaling.
-        This package contains software that integrates NGINX Plus
-        with AWS Auto Scaling groups and Azure Virtual Machine Scale Set
       "org.opencontainers.image.created": "{{.Date}}"
       "org.opencontainers.image.name": "{{.ProjectName}}"
       "org.opencontainers.image.revision": "{{.FullCommit}}"
