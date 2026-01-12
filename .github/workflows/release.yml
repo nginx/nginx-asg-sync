@@ -1,9 +1,11 @@
-name: CI
+name: Release
 
 on:
-  pull_request:
+  push:
     branches:
       - main
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 defaults:
   run:
@@ -15,7 +17,7 @@ permissions:
 jobs:
   binary:
     name: Build Binary
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-amd64
     steps:
       - name: Checkout Repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -37,7 +39,7 @@ jobs:
 
   unit-tests:
     name: Unit Tests
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-amd64
     steps:
       - name: Checkout Repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -52,7 +54,7 @@ jobs:
 
   build:
     name: Build Packages
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-24.04-amd64
     needs: [binary, unit-tests]
     permissions:
       contents: write
