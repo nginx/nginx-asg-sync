@@ -101,6 +101,37 @@ jobs:
           mkdir -p $HOME/.cache/snapcraft/stage-packages
         if: github.ref_type == 'tag'
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+           platforms: arm64
+        if: github.ref_type == 'tag'
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          #version: v0.12.1
+          #version: https://github.com/docker/buildx.git#master
+          driver-opts: network=host
+        if: github.ref_type == 'tag'
+
+      - name: Get Id Token
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        id: idtoken1
+        with:
+          script: |
+            let id_token = await core.getIDToken()
+            core.setOutput('id_token', id_token)
+        if: github.ref_type == 'tag'
+
+      - name: Login to NGINX Registry
+        uses: docker/login-action@v3
+        with:
+          registry: docker-mgmt-test.nginx.com
+          username: ${{ steps.idtoken1.outputs.id_token }}
+          password: ${{ github.actor }}
+        if: github.ref_type == 'tag'
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:

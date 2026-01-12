@@ -21,6 +21,36 @@ builds:
     main: ./cmd/sync
     binary: nginx-asg-sync
 
+dockers_v2:
+  -
+    id: distroless-debian
+    dockerfile: "build/Dockerfile"
+    ids: 
+      - nginx-asg-sync
+    images:
+      - "docker-mgmt-test.nginx.com/nginx/asg-sync"
+    tags:
+      - "v{{ .Version }}"
+      - "latest"
+    extra_files:
+      - build/config.yaml.example
+      - LICENSE
+      - README.md
+    labels:
+      "org.opencontainers.image.description": |-
+        NGINX Plus Integration with Cloud Autoscaling.
+        This package contains software that integrates NGINX Plus
+        with AWS Auto Scaling groups and Azure Virtual Machine Scale Set
+      "org.opencontainers.image.created": "{{.Date}}"
+      "org.opencontainers.image.name": "{{.ProjectName}}"
+      "org.opencontainers.image.revision": "{{.FullCommit}}"
+      "org.opencontainers.image.version": "{{.Version}}"
+      "org.opencontainers.image.source": "{{.GitURL}}"
+      "org.opencontainers.image.license": "BSD-2-Clause"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+
 nfpms:
   - file_name_template: "{{ .ConventionalFileName }}"
     vendor: NGINX Inc.
