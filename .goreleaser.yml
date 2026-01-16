@@ -25,7 +25,7 @@ dockers_v2:
   -
     id: distroless-debian
     dockerfile: "build/Dockerfile"
-    ids: 
+    ids:
       - nginx-asg-sync
     images:
       - "docker-mgmt-test.nginx.com/nginx/asg-sync"
