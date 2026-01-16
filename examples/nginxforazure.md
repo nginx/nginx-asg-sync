@@ -19,10 +19,10 @@ With VMSS backend integration, you can:
 ```mermaid
 flowchart TB
     Agent[nginx-asg-sync Agent] --> |Update upstreams via API| NGINXaaS
-    
+
     MI[Managed Identity] --> |Read permissions| VMSS
     Agent --> |Uses| MI
-    
+
     style NGINXaaS fill:#e1f5fe
     style Agent fill:#f3e5f5
     style VMSS fill:#fff3e0
@@ -514,8 +514,8 @@ upstreams:
     max_conns: 0
     max_fails: 1
     fail_timeout: 10s
-    slow_start: 0s 
-  - name: backend-two  
+    slow_start: 0s
+  - name: backend-two
     virtual_machine_scale_set: backend-two-vmss
     port: 8080
     kind: http
