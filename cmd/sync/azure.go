@@ -132,6 +132,7 @@ func (client *AzureClient) getNetworkInterfacesForVM(ctx context.Context, vmName
 		return nil, fmt.Errorf("failed to get VM details: %w", err)
 	}
 
+	//nolint:prealloc
 	var interfaces []*armnetwork.Interface
 
 	if vmDetails.Properties == nil || vmDetails.Properties.NetworkProfile == nil || vmDetails.Properties.NetworkProfile.NetworkInterfaces == nil {
