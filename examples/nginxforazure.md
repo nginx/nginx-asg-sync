@@ -134,6 +134,28 @@ Create an Azure VM that will run the nginx-asg-sync agent. For detailed instruct
 
 ### 5. Assign managed identity permissions
 
+#### Important: Permissions and Scope Vary by VMSS Orchestration Mode
+
+**Uniform VMSS:**
+
+- The following actions are sufficient for uniform mode:
+  - `Microsoft.Compute/virtualMachineScaleSets/read`
+  - `Microsoft.Compute/virtualMachineScaleSets/networkInterfaces/read`
+
+- You can assign the custom role at the **VMSS resource scope** (recommended for least privilege).
+
+**Flexible VMSS:**
+
+- Flexible mode requires additional permissions:
+  - `Microsoft.Compute/virtualMachineScaleSets/read`
+  - `Microsoft.Compute/virtualMachineScaleSets/networkInterfaces/read`
+  - `Microsoft.Compute/virtualMachineScaleSets/virtualMachines/read`
+  - `Microsoft.Compute/virtualMachines/read`
+  - `Microsoft.Network/networkInterfaces/read`
+
+- For flexible mode, you **must assign the custom role at the resource group level** (not just the VMSS scope),
+because the agent needs to read individual VM and NIC resources that are not children of the VMSS resource.
+
 nginx-asg-sync uses the Azure API to read the IP addresses of the Virtual Machine Scale Set.
 To access the Azure API, nginx-asg-sync must run in an environment with appropriate permissions over the VMSS backend.
 This section configures a system-assigned managed identity with the minimum required permissions.
@@ -231,11 +253,19 @@ Assign the custom role to the VM's system-assigned managed identity:
 roleName="VMSS-Network-Read-Role"
 
 # Assign the custom role to the VM's managed identity
+# For uniform VMSS, use the VMSS resource ID as scope:
 az role assignment create \
   --assignee-object-id $principalId \
   --assignee-principal-type ServicePrincipal \
   --role $roleName \
   --scope $vmssId
+
+# For flexible VMSS, use the resource group as scope:
+# az role assignment create \
+#   --assignee-object-id $principalId \
+#   --assignee-principal-type ServicePrincipal \
+#   --role $roleName \
+#   --scope /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP_NAME>
 ```
 
 #### Verify Role Assignment
@@ -246,7 +276,7 @@ Verify that the role assignment was created successfully:
 # Verify role assignment
 az role assignment list \
   --assignee $principalId \
-  --scope $vmssId \
+  --all \
   --output table
 ```
 
@@ -412,6 +442,12 @@ az role assignment create \
   --assignee-principal-type ServicePrincipal \
   --role $roleName \
   --scope $vmssId
+# For flexible VMSS, assign at the resource group scope:
+# az role assignment create \
+#   --assignee-object-id $IDENTITY_PRINCIPAL_ID \
+#   --assignee-principal-type ServicePrincipal \
+#   --role $roleName \
+#   --scope /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP_NAME>
 ```
 
 ##### Step 5: Create Container Instance

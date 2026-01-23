@@ -1,15 +1,347 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"reflect"
 	"testing"
 
 	network "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8"
+
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v7"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8"
 )
 
 type testInputAzure struct {
 	cfg *azureConfig
 	msg string
 }
+
+type mockVMSSClient struct {
+	getFunc func(ctx context.Context, rg, name string, opts *armcompute.VirtualMachineScaleSetsClientGetOptions) (armcompute.VirtualMachineScaleSetsClientGetResponse, error)
+}
+
+func (m *mockVMSSClient) Get(ctx context.Context, rg, name string, opts *armcompute.VirtualMachineScaleSetsClientGetOptions) (armcompute.VirtualMachineScaleSetsClientGetResponse, error) {
+	return m.getFunc(ctx, rg, name, opts)
+}
+
+type mockVMSSVMsClient struct {
+	newListPagerFunc func(rg, name string, opts *armcompute.VirtualMachineScaleSetVMsClientListOptions) *mockPagerVMSSVMs
+}
+
+func (m *mockVMSSVMsClient) NewListPager(
+	rg, name string, opts *armcompute.VirtualMachineScaleSetVMsClientListOptions,
+) *runtime.Pager[armcompute.VirtualMachineScaleSetVMsClientListResponse] {
+	pager := m.newListPagerFunc(rg, name, opts)
+	return runtime.NewPager(
+		runtime.PagingHandler[armcompute.VirtualMachineScaleSetVMsClientListResponse]{
+			More: func(
+				page armcompute.VirtualMachineScaleSetVMsClientListResponse,
+			) bool {
+				return pager.More()
+			},
+			Fetcher: func(
+				ctx context.Context,
+				page *armcompute.VirtualMachineScaleSetVMsClientListResponse,
+			) (
+				armcompute.VirtualMachineScaleSetVMsClientListResponse,
+				error,
+			) {
+				return pager.NextPage(ctx)
+			},
+		},
+	)
+}
+
+type mockVMsClient struct {
+	getFunc func(ctx context.Context, rg, name string, opts *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error)
+}
+
+func (m *mockVMsClient) Get(ctx context.Context, rg, name string, opts *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error) {
+	return m.getFunc(ctx, rg, name, opts)
+}
+
+type mockInterfacesClient struct {
+	newListPagerFunc func(rg, vmss string, opts *armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesOptions) *mockPagerNICs
+	getFunc          func(ctx context.Context, rg, name string, opts *armnetwork.InterfacesClientGetOptions) (armnetwork.InterfacesClientGetResponse, error)
+}
+
+func (m *mockInterfacesClient) NewListVirtualMachineScaleSetNetworkInterfacesPager(
+	rg, vmss string,
+	opts *armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesOptions,
+) *runtime.Pager[armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse] {
+	pager := m.newListPagerFunc(rg, vmss, opts)
+	return runtime.NewPager(
+		runtime.PagingHandler[armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse]{
+			More: func(page armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse) bool {
+				return pager.More()
+			},
+			Fetcher: func(ctx context.Context, page *armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse) (armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse, error) {
+				return pager.NextPage(ctx)
+			},
+		},
+	)
+}
+
+func (m *mockInterfacesClient) Get(ctx context.Context, rg, name string, opts *armnetwork.InterfacesClientGetOptions) (armnetwork.InterfacesClientGetResponse, error) {
+	return m.getFunc(ctx, rg, name, opts)
+}
+
+type mockPagerNICs struct {
+	pages [][]*armnetwork.Interface
+	idx   int
+	err   error
+}
+
+func (m *mockPagerNICs) More() bool {
+	return m.idx < len(m.pages)
+}
+
+func (m *mockPagerNICs) NextPage(ctx context.Context) (armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse, error) {
+	if m.err != nil {
+		return armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse{}, m.err
+	}
+	if m.idx >= len(m.pages) {
+		return armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse{}, errors.New("no more pages")
+	}
+	resp := armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse{
+		InterfaceListResult: armnetwork.InterfaceListResult{
+			Value: m.pages[m.idx],
+		},
+	}
+	m.idx++
+	return resp, nil
+}
+
+type mockPagerVMSSVMs struct {
+	pages [][]*armcompute.VirtualMachineScaleSetVM
+	idx   int
+	err   error
+}
+
+func (m *mockPagerVMSSVMs) More() bool {
+	return m.idx < len(m.pages)
+}
+
+func (m *mockPagerVMSSVMs) NextPage(ctx context.Context) (armcompute.VirtualMachineScaleSetVMsClientListResponse, error) {
+	if m.err != nil {
+		return armcompute.VirtualMachineScaleSetVMsClientListResponse{}, m.err
+	}
+	if m.idx >= len(m.pages) {
+		return armcompute.VirtualMachineScaleSetVMsClientListResponse{}, errors.New("no more pages")
+	}
+	resp := armcompute.VirtualMachineScaleSetVMsClientListResponse{
+		VirtualMachineScaleSetVMListResult: armcompute.VirtualMachineScaleSetVMListResult{
+			Value: m.pages[m.idx],
+		},
+	}
+	m.idx++
+	return resp, nil
+}
+
+func TestAzureClient_GetPrivateIPsForScalingGroup(t *testing.T) {
+	uniformVMSS := armcompute.VirtualMachineScaleSetsClientGetResponse{
+		VirtualMachineScaleSet: armcompute.VirtualMachineScaleSet{
+			Properties: &armcompute.VirtualMachineScaleSetProperties{
+				OrchestrationMode: func() *armcompute.OrchestrationMode {
+					m := armcompute.OrchestrationModeUniform
+					return &m
+				}(),
+			},
+		},
+	}
+	flexibleVMSS := armcompute.VirtualMachineScaleSetsClientGetResponse{
+		VirtualMachineScaleSet: armcompute.VirtualMachineScaleSet{
+			Properties: &armcompute.VirtualMachineScaleSetProperties{
+				OrchestrationMode: func() *armcompute.OrchestrationMode {
+					m := armcompute.OrchestrationModeFlexible
+					return &m
+				}(),
+			},
+		},
+	}
+
+	tests := []struct {
+		name            string
+		vmssResp        armcompute.VirtualMachineScaleSetsClientGetResponse
+		vmssErr         error
+		uniformNICs     [][]*armnetwork.Interface
+		uniformNICsErr  error
+		flexibleVMs     [][]*armcompute.VirtualMachineScaleSetVM
+		flexibleVMsErr  error
+		flexibleNICs    map[string][]*armnetwork.Interface
+		flexibleNICsErr map[string]error
+		wantIPs         []string
+		wantErr         bool
+		orchestration   armcompute.OrchestrationMode
+	}{
+		{
+			name:     "Uniform - single NIC with primary IP",
+			vmssResp: uniformVMSS,
+			uniformNICs: [][]*armnetwork.Interface{{{
+				Properties: &armnetwork.InterfacePropertiesFormat{
+					VirtualMachine: &armnetwork.SubResource{
+						ID: ptrStr("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm1"),
+					},
+					IPConfigurations: []*armnetwork.InterfaceIPConfiguration{{
+						Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
+							Primary:          ptrBool(true),
+							PrivateIPAddress: ptrStr("10.0.0.1"),
+						},
+					}},
+				},
+			}}},
+			wantIPs: []string{"10.0.0.1"},
+		},
+		{
+			name:        "Uniform - no NICs",
+			vmssResp:    uniformVMSS,
+			uniformNICs: [][]*armnetwork.Interface{{}},
+			wantIPs:     []string{},
+		},
+		{
+			name:           "Uniform - error listing NICs",
+			vmssResp:       uniformVMSS,
+			uniformNICsErr: errors.New("fail list NICs"),
+			wantErr:        true,
+		},
+		{
+			name:     "Flexible - single VM, single NIC",
+			vmssResp: flexibleVMSS,
+			flexibleVMs: [][]*armcompute.VirtualMachineScaleSetVM{{{
+				Name: ptrStr("vm1"),
+			}}},
+			flexibleNICs: map[string][]*armnetwork.Interface{
+				"vm1-nic": {{
+					Properties: &armnetwork.InterfacePropertiesFormat{
+						VirtualMachine: &armnetwork.SubResource{
+							ID: ptrStr("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/vm1"),
+						},
+						IPConfigurations: []*armnetwork.InterfaceIPConfiguration{{
+							Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
+								Primary:          ptrBool(true),
+								PrivateIPAddress: ptrStr("10.0.0.2"),
+							},
+						}},
+					},
+				}},
+			},
+			wantIPs: []string{"10.0.0.2"},
+		},
+		{
+			name:           "Flexible - error listing VMs",
+			vmssResp:       flexibleVMSS,
+			flexibleVMsErr: errors.New("fail list VMs"),
+			wantErr:        true,
+		},
+		{
+			name:     "Flexible - error getting NICs",
+			vmssResp: flexibleVMSS,
+			flexibleVMs: [][]*armcompute.VirtualMachineScaleSetVM{{{
+				Name: ptrStr("vm2"),
+			}}},
+			flexibleNICsErr: map[string]error{
+				"vm2-nic": errors.New("fail get NICs"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "unknown orchestration mode",
+			vmssResp: armcompute.VirtualMachineScaleSetsClientGetResponse{
+				VirtualMachineScaleSet: armcompute.VirtualMachineScaleSet{
+					Properties: &armcompute.VirtualMachineScaleSetProperties{
+						OrchestrationMode: func() *armcompute.OrchestrationMode {
+							m := armcompute.OrchestrationMode("UnknownMode")
+							return &m
+						}(),
+					},
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ac := &AzureClient{
+				config: &azureConfig{
+					SubscriptionID:    "sub",
+					ResourceGroupName: "rg",
+				},
+			}
+
+			ac.vMSSClient = &mockVMSSClient{
+				getFunc: func(ctx context.Context, rg, name string, opts *armcompute.VirtualMachineScaleSetsClientGetOptions) (armcompute.VirtualMachineScaleSetsClientGetResponse, error) {
+					return tt.vmssResp, tt.vmssErr
+				},
+			}
+
+			ac.vmssVmClient = &mockVMSSVMsClient{
+				newListPagerFunc: func(rg, name string, opts *armcompute.VirtualMachineScaleSetVMsClientListOptions) *mockPagerVMSSVMs {
+					return &mockPagerVMSSVMs{
+						pages: tt.flexibleVMs,
+						err:   tt.flexibleVMsErr,
+					}
+				},
+			}
+
+			ac.individualvmssVmClient = &mockVMsClient{
+				getFunc: func(ctx context.Context, rg, name string, opts *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error) {
+					// Only used in flexible mode
+					if tt.flexibleNICsErr != nil && tt.flexibleNICsErr[name] != nil {
+						return armcompute.VirtualMachinesClientGetResponse{}, tt.flexibleNICsErr[name]
+					}
+					return armcompute.VirtualMachinesClientGetResponse{
+						VirtualMachine: armcompute.VirtualMachine{
+							Properties: &armcompute.VirtualMachineProperties{
+								NetworkProfile: &armcompute.NetworkProfile{
+									NetworkInterfaces: []*armcompute.NetworkInterfaceReference{{
+										ID: ptrStr("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/networkInterfaces/" + name + "-nic"),
+									}},
+								},
+							},
+						},
+					}, nil
+				},
+			}
+
+			ac.iFaceClient = &mockInterfacesClient{
+				newListPagerFunc: func(rg, vmss string, opts *armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesOptions) *mockPagerNICs {
+					return &mockPagerNICs{
+						pages: tt.uniformNICs,
+						err:   tt.uniformNICsErr,
+					}
+				},
+				getFunc: func(ctx context.Context, rg, name string, opts *armnetwork.InterfacesClientGetOptions) (armnetwork.InterfacesClientGetResponse, error) {
+					// Only used in flexible mode
+					if tt.flexibleNICsErr != nil && tt.flexibleNICsErr[name] != nil {
+						return armnetwork.InterfacesClientGetResponse{}, tt.flexibleNICsErr[name]
+					}
+					if tt.flexibleNICs != nil && tt.flexibleNICs[name] != nil {
+						return armnetwork.InterfacesClientGetResponse{
+							Interface: armnetwork.Interface{
+								Properties: tt.flexibleNICs[name][0].Properties,
+							},
+						}, nil
+					}
+					return armnetwork.InterfacesClientGetResponse{}, nil
+				},
+			}
+
+			ips, err := ac.GetPrivateIPsForScalingGroup("testvmss")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("expected error: %v, got: %v", tt.wantErr, err)
+			}
+			if !reflect.DeepEqual(ips, tt.wantIPs) {
+				t.Errorf("expected IPs: %v, got: %v", tt.wantIPs, ips)
+			}
+		})
+	}
+}
+
+func ptrStr(s string) *string { return &s }
+func ptrBool(b bool) *bool    { return &b }
 
 func getValidAzureConfig() *azureConfig {
 	upstreams := []azureUpstream{
