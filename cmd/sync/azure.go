@@ -37,8 +37,8 @@ type InterfacesClient interface {
 type AzureClient struct {
 	config                 *azureConfig
 	vMSSClient             VMSSClient
-	vmssVmClient           VMSSVMsClient
-	individualvmssVmClient VMsClient
+	vmssVMClient           VMSSVMsClient
+	individualvmssVMClient VMsClient
 	iFaceClient            InterfacesClient
 }
 
@@ -125,9 +125,9 @@ func (client *AzureClient) getInterfacesFromIndividualVMs(ctx context.Context, v
 	return interfaces, nil
 }
 
-// getNetworkInterfacesForVM retrieves network interfaces for a single VM
+// getNetworkInterfacesForVM retrieves network interfaces for a single VM.
 func (client *AzureClient) getNetworkInterfacesForVM(ctx context.Context, vmName string) ([]*armnetwork.Interface, error) {
-	vmDetails, err := client.individualvmssVmClient.Get(ctx, client.config.ResourceGroupName, vmName, nil)
+	vmDetails, err := client.individualvmssVMClient.Get(ctx, client.config.ResourceGroupName, vmName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get VM details: %w", err)
 	}
@@ -196,7 +196,7 @@ func (client *AzureClient) GetPrivateIPsForScalingGroup(name string) ([]string, 
 	}
 }
 
-// getIPsFromUniformVMSS handles uniform orchestration mode using scale set level APIs
+// getIPsFromUniformVMSS handles uniform orchestration mode using scale set level APIs.
 func (client *AzureClient) getIPsFromUniformVMSS(ctx context.Context, name string) ([]string, error) {
 	interfaces, err := client.listScaleSetsNetworkInterfaces(ctx, client.config.ResourceGroupName, name)
 	if err != nil {
@@ -206,7 +206,7 @@ func (client *AzureClient) getIPsFromUniformVMSS(ctx context.Context, name strin
 	return client.extractPrivateIPsFromInterfaces(interfaces)
 }
 
-// getIPsFromFlexibleVMSS handles flexible orchestration mode using individual VM APIs
+// getIPsFromFlexibleVMSS handles flexible orchestration mode using individual VM APIs.
 func (client *AzureClient) getIPsFromFlexibleVMSS(ctx context.Context, name string) ([]string, error) {
 	vmList, err := client.listVMsInScaleSet(ctx, name)
 	if err != nil {
@@ -226,11 +226,11 @@ func (client *AzureClient) getIPsFromFlexibleVMSS(ctx context.Context, name stri
 	return client.extractPrivateIPsFromInterfaces(interfaces)
 }
 
-// listVMsInScaleSet lists all VMs in a scale set
+// listVMsInScaleSet lists all VMs in a scale set.
 func (client *AzureClient) listVMsInScaleSet(ctx context.Context, name string) ([]*armcompute.VirtualMachineScaleSetVM, error) {
 	var vmList []*armcompute.VirtualMachineScaleSetVM
 
-	pager := client.vmssVmClient.NewListPager(client.config.ResourceGroupName, name, nil)
+	pager := client.vmssVMClient.NewListPager(client.config.ResourceGroupName, name, nil)
 	for pager.More() {
 		resp, err := pager.NextPage(ctx)
 		if err != nil {
@@ -242,7 +242,7 @@ func (client *AzureClient) listVMsInScaleSet(ctx context.Context, name string) (
 	return vmList, nil
 }
 
-// extractPrivateIPsFromInterfaces extracts private IP addresses from a list of network interfaces
+// extractPrivateIPsFromInterfaces extracts private IP addresses from a list of network interfaces.
 func (client *AzureClient) extractPrivateIPsFromInterfaces(interfaces []*armnetwork.Interface) ([]string, error) {
 	if len(interfaces) == 0 {
 		return []string{}, nil
@@ -311,8 +311,8 @@ func (client *AzureClient) configure() error {
 		return fmt.Errorf("couldn't create client factory: %w", err)
 	}
 	client.vMSSClient = computeClientFactory.NewVirtualMachineScaleSetsClient()
-	client.vmssVmClient = computeClientFactory.NewVirtualMachineScaleSetVMsClient()
-	client.individualvmssVmClient = computeClientFactory.NewVirtualMachinesClient()
+	client.vmssVMClient = computeClientFactory.NewVirtualMachineScaleSetVMsClient()
+	client.individualvmssVMClient = computeClientFactory.NewVirtualMachinesClient()
 
 	iclient, err := armnetwork.NewInterfacesClient(client.config.SubscriptionID, cred, nil)
 	if err != nil {
@@ -323,8 +323,8 @@ func (client *AzureClient) configure() error {
 	return nil
 }
 
-// extractResourceNameFromID extracts the resource name from an Azure resource ID
-// Resource ID format: /subscriptions/{subscription}/resourceGroups/{rg}/providers/{provider}/{resourceType}/{resourceName}
+// extractResourceNameFromID extracts the resource name from an Azure resource ID.
+// Resource ID format: /subscriptions/{subscription}/resourceGroups/{rg}/providers/{provider}/{resourceType}/{resourceName}.
 func extractResourceNameFromID(resourceID string) (string, error) {
 	parts := strings.Split(resourceID, "/")
 	if len(parts) == 0 {

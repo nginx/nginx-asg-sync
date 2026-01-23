@@ -6,8 +6,6 @@ import (
 	"reflect"
 	"testing"
 
-	network "github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8"
-
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v7"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8"
@@ -37,13 +35,13 @@ func (m *mockVMSSVMsClient) NewListPager(
 	return runtime.NewPager(
 		runtime.PagingHandler[armcompute.VirtualMachineScaleSetVMsClientListResponse]{
 			More: func(
-				page armcompute.VirtualMachineScaleSetVMsClientListResponse,
+				_ armcompute.VirtualMachineScaleSetVMsClientListResponse,
 			) bool {
 				return pager.More()
 			},
 			Fetcher: func(
 				ctx context.Context,
-				page *armcompute.VirtualMachineScaleSetVMsClientListResponse,
+				_ *armcompute.VirtualMachineScaleSetVMsClientListResponse,
 			) (
 				armcompute.VirtualMachineScaleSetVMsClientListResponse,
 				error,
@@ -74,10 +72,10 @@ func (m *mockInterfacesClient) NewListVirtualMachineScaleSetNetworkInterfacesPag
 	pager := m.newListPagerFunc(rg, vmss, opts)
 	return runtime.NewPager(
 		runtime.PagingHandler[armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse]{
-			More: func(page armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse) bool {
+			More: func(_ armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse) bool {
 				return pager.More()
 			},
-			Fetcher: func(ctx context.Context, page *armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse) (armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse, error) {
+			Fetcher: func(ctx context.Context, _ *armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse) (armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse, error) {
 				return pager.NextPage(ctx)
 			},
 		},
@@ -89,16 +87,16 @@ func (m *mockInterfacesClient) Get(ctx context.Context, rg, name string, opts *a
 }
 
 type mockPagerNICs struct {
+	err   error
 	pages [][]*armnetwork.Interface
 	idx   int
-	err   error
 }
 
 func (m *mockPagerNICs) More() bool {
 	return m.idx < len(m.pages)
 }
 
-func (m *mockPagerNICs) NextPage(ctx context.Context) (armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse, error) {
+func (m *mockPagerNICs) NextPage(_ context.Context) (armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse, error) {
 	if m.err != nil {
 		return armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesResponse{}, m.err
 	}
@@ -115,16 +113,16 @@ func (m *mockPagerNICs) NextPage(ctx context.Context) (armnetwork.InterfacesClie
 }
 
 type mockPagerVMSSVMs struct {
+	err   error
 	pages [][]*armcompute.VirtualMachineScaleSetVM
 	idx   int
-	err   error
 }
 
 func (m *mockPagerVMSSVMs) More() bool {
 	return m.idx < len(m.pages)
 }
 
-func (m *mockPagerVMSSVMs) NextPage(ctx context.Context) (armcompute.VirtualMachineScaleSetVMsClientListResponse, error) {
+func (m *mockPagerVMSSVMs) NextPage(_ context.Context) (armcompute.VirtualMachineScaleSetVMsClientListResponse, error) {
 	if m.err != nil {
 		return armcompute.VirtualMachineScaleSetVMsClientListResponse{}, m.err
 	}
@@ -141,6 +139,7 @@ func (m *mockPagerVMSSVMs) NextPage(ctx context.Context) (armcompute.VirtualMach
 }
 
 func TestAzureClient_GetPrivateIPsForScalingGroup(t *testing.T) {
+	t.Parallel()
 	uniformVMSS := armcompute.VirtualMachineScaleSetsClientGetResponse{
 		VirtualMachineScaleSet: armcompute.VirtualMachineScaleSet{
 			Properties: &armcompute.VirtualMachineScaleSetProperties{
@@ -161,20 +160,20 @@ func TestAzureClient_GetPrivateIPsForScalingGroup(t *testing.T) {
 			},
 		},
 	}
-
+	//nolint:govet
 	tests := []struct {
-		name            string
 		vmssResp        armcompute.VirtualMachineScaleSetsClientGetResponse
-		vmssErr         error
 		uniformNICs     [][]*armnetwork.Interface
-		uniformNICsErr  error
 		flexibleVMs     [][]*armcompute.VirtualMachineScaleSetVM
-		flexibleVMsErr  error
 		flexibleNICs    map[string][]*armnetwork.Interface
 		flexibleNICsErr map[string]error
 		wantIPs         []string
+		vmssErr         error
+		uniformNICsErr  error
+		flexibleVMsErr  error
 		wantErr         bool
 		orchestration   armcompute.OrchestrationMode
+		name            string
 	}{
 		{
 			name:     "Uniform - single NIC with primary IP",
@@ -264,6 +263,7 @@ func TestAzureClient_GetPrivateIPsForScalingGroup(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ac := &AzureClient{
 				config: &azureConfig{
 					SubscriptionID:    "sub",
@@ -272,13 +272,13 @@ func TestAzureClient_GetPrivateIPsForScalingGroup(t *testing.T) {
 			}
 
 			ac.vMSSClient = &mockVMSSClient{
-				getFunc: func(ctx context.Context, rg, name string, opts *armcompute.VirtualMachineScaleSetsClientGetOptions) (armcompute.VirtualMachineScaleSetsClientGetResponse, error) {
+				getFunc: func(_ context.Context, _, _ string, _ *armcompute.VirtualMachineScaleSetsClientGetOptions) (armcompute.VirtualMachineScaleSetsClientGetResponse, error) {
 					return tt.vmssResp, tt.vmssErr
 				},
 			}
 
-			ac.vmssVmClient = &mockVMSSVMsClient{
-				newListPagerFunc: func(rg, name string, opts *armcompute.VirtualMachineScaleSetVMsClientListOptions) *mockPagerVMSSVMs {
+			ac.vmssVMClient = &mockVMSSVMsClient{
+				newListPagerFunc: func(_, _ string, _ *armcompute.VirtualMachineScaleSetVMsClientListOptions) *mockPagerVMSSVMs {
 					return &mockPagerVMSSVMs{
 						pages: tt.flexibleVMs,
 						err:   tt.flexibleVMsErr,
@@ -286,8 +286,8 @@ func TestAzureClient_GetPrivateIPsForScalingGroup(t *testing.T) {
 				},
 			}
 
-			ac.individualvmssVmClient = &mockVMsClient{
-				getFunc: func(ctx context.Context, rg, name string, opts *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error) {
+			ac.individualvmssVMClient = &mockVMsClient{
+				getFunc: func(_ context.Context, _, name string, _ *armcompute.VirtualMachinesClientGetOptions) (armcompute.VirtualMachinesClientGetResponse, error) {
 					// Only used in flexible mode
 					if tt.flexibleNICsErr != nil && tt.flexibleNICsErr[name] != nil {
 						return armcompute.VirtualMachinesClientGetResponse{}, tt.flexibleNICsErr[name]
@@ -297,7 +297,7 @@ func TestAzureClient_GetPrivateIPsForScalingGroup(t *testing.T) {
 							Properties: &armcompute.VirtualMachineProperties{
 								NetworkProfile: &armcompute.NetworkProfile{
 									NetworkInterfaces: []*armcompute.NetworkInterfaceReference{{
-										ID: ptrStr("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/networkInterfaces/" + name + "-nic"),
+										ID: ptrStr("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.armnetwork/networkInterfaces/" + name + "-nic"),
 									}},
 								},
 							},
@@ -307,13 +307,13 @@ func TestAzureClient_GetPrivateIPsForScalingGroup(t *testing.T) {
 			}
 
 			ac.iFaceClient = &mockInterfacesClient{
-				newListPagerFunc: func(rg, vmss string, opts *armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesOptions) *mockPagerNICs {
+				newListPagerFunc: func(_, _ string, _ *armnetwork.InterfacesClientListVirtualMachineScaleSetNetworkInterfacesOptions) *mockPagerNICs {
 					return &mockPagerNICs{
 						pages: tt.uniformNICs,
 						err:   tt.uniformNICsErr,
 					}
 				},
-				getFunc: func(ctx context.Context, rg, name string, opts *armnetwork.InterfacesClientGetOptions) (armnetwork.InterfacesClientGetResponse, error) {
+				getFunc: func(_ context.Context, _, name string, _ *armnetwork.InterfacesClientGetOptions) (armnetwork.InterfacesClientGetResponse, error) {
 					// Only used in flexible mode
 					if tt.flexibleNICsErr != nil && tt.flexibleNICsErr[name] != nil {
 						return armnetwork.InterfacesClientGetResponse{}, tt.flexibleNICsErr[name]
@@ -362,7 +362,7 @@ func getValidAzureConfig() *azureConfig {
 }
 
 func getInvalidAzureConfigInput() []*testInputAzure {
-	var input []*testInputAzure
+	input := make([]*testInputAzure, 0, 10)
 
 	invalidSubscriptionCfg := getValidAzureConfig()
 	invalidSubscriptionCfg.SubscriptionID = ""
@@ -437,8 +437,8 @@ func TestGetPrimaryIPFromInterfaceIPConfiguration(t *testing.T) {
 	t.Parallel()
 	primary := true
 	address := "127.0.0.1"
-	ipConfig := &network.InterfaceIPConfiguration{
-		Properties: &network.InterfaceIPConfigurationPropertiesFormat{
+	ipConfig := &armnetwork.InterfaceIPConfiguration{
+		Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
 			Primary:          &primary,
 			PrivateIPAddress: &address,
 		},
@@ -454,30 +454,30 @@ func TestGetPrimaryIPFromInterfaceIPConfigurationFail(t *testing.T) {
 	primaryFalse := false
 	primaryTrue := true
 	tests := []struct {
-		ipConfig *network.InterfaceIPConfiguration
+		ipConfig *armnetwork.InterfaceIPConfiguration
 		msg      string
 	}{
 		{
-			ipConfig: &network.InterfaceIPConfiguration{},
+			ipConfig: &armnetwork.InterfaceIPConfiguration{},
 			msg:      "empty primary",
 		},
 		{
-			ipConfig: &network.InterfaceIPConfiguration{
-				Properties: &network.InterfaceIPConfigurationPropertiesFormat{
+			ipConfig: &armnetwork.InterfaceIPConfiguration{
+				Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
 					Primary: &primaryFalse,
 				},
 			},
 			msg: "not primary interface",
 		},
 		{
-			ipConfig: &network.InterfaceIPConfiguration{
+			ipConfig: &armnetwork.InterfaceIPConfiguration{
 				Properties: nil,
 			},
 			msg: "no interface properties",
 		},
 		{
-			ipConfig: &network.InterfaceIPConfiguration{
-				Properties: &network.InterfaceIPConfigurationPropertiesFormat{
+			ipConfig: &armnetwork.InterfaceIPConfiguration{
+				Properties: &armnetwork.InterfaceIPConfigurationPropertiesFormat{
 					Primary:          &primaryTrue,
 					PrivateIPAddress: nil,
 				},
