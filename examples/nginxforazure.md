@@ -138,11 +138,12 @@ Create an Azure VM that will run the nginx-asg-sync agent. For detailed instruct
 
 **Uniform VMSS:**
 
-- The following actions are sufficient for uniform mode:
+- The following permissions are sufficient for uniform mode:
   - `Microsoft.Compute/virtualMachineScaleSets/read`
   - `Microsoft.Compute/virtualMachineScaleSets/networkInterfaces/read`
 
-- You can assign the custom role at the **VMSS resource scope** (recommended for least privilege).
+- You can assign the custom role at the **VMSS resource scope**
+(recommended to allow application least privileges necessary for its activities).
 
 **Flexible VMSS:**
 
