@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/compute/armcompute/v7"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/network/armnetwork/v8"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/arm"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 
 	yaml "gopkg.in/yaml.v3"
@@ -97,18 +97,18 @@ func (client *AzureClient) getInterfacesFromIndividualVMs(ctx context.Context, v
 	}
 
 	var interfaces []*armnetwork.Interface
-	var errList []string
+	var errList []error
 
 	for _, vm := range vmList {
 		if vm.Name == nil {
-			errList = append(errList, "VM with nil name found")
+			errList = append(errList, errors.New("VM with nil name found"))
 			continue
 		}
 
 		vmName := *vm.Name
 		vmInterfaces, err := client.getNetworkInterfacesForVM(ctx, vmName)
 		if err != nil {
-			errList = append(errList, fmt.Sprintf("VM %s: %v", vmName, err))
+			errList = append(errList, fmt.Errorf("VM %s: %w", vmName, err))
 			continue
 		}
 
@@ -117,8 +117,8 @@ func (client *AzureClient) getInterfacesFromIndividualVMs(ctx context.Context, v
 
 	if len(errList) > 0 {
 		return nil, fmt.Errorf(
-			"errors while getInterfacesFromIndividualVMs:\n%s",
-			strings.Join(errList, "\n"),
+			"errors while getInterfacesFromIndividualVMs:\n%w",
+			errors.Join(errList...),
 		)
 	}
 
@@ -132,27 +132,26 @@ func (client *AzureClient) getNetworkInterfacesForVM(ctx context.Context, vmName
 		return nil, fmt.Errorf("failed to get VM details: %w", err)
 	}
 
-	//nolint:prealloc
-	var interfaces []*armnetwork.Interface
-
 	if vmDetails.Properties == nil || vmDetails.Properties.NetworkProfile == nil || vmDetails.Properties.NetworkProfile.NetworkInterfaces == nil {
 		log.Printf("VM %s has no network interfaces", vmName)
-		return interfaces, nil // VM has no network interfaces
+		return nil, nil // VM has no network interfaces
 	}
+
+	interfaces := make([]*armnetwork.Interface, 0, len(vmDetails.Properties.NetworkProfile.NetworkInterfaces))
 
 	for _, nicRef := range vmDetails.Properties.NetworkProfile.NetworkInterfaces {
 		if nicRef.ID == nil {
 			continue
 		}
 
-		nicName, err := extractResourceNameFromID(*nicRef.ID)
+		rID, err := arm.ParseResourceID(*nicRef.ID)
 		if err != nil {
 			return nil, fmt.Errorf("invalid NIC ID format: %w", err)
 		}
 
-		nic, err := client.iFaceClient.Get(ctx, client.config.ResourceGroupName, nicName, nil)
+		nic, err := client.iFaceClient.Get(ctx, client.config.ResourceGroupName, rID.Name, nil)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get network interface %s: %w", nicName, err)
+			return nil, fmt.Errorf("failed to get network interface %s: %w", rID.Name, err)
 		}
 
 		interfaces = append(interfaces, &nic.Interface)
@@ -180,11 +179,11 @@ func (client *AzureClient) GetPrivateIPsForScalingGroup(name string) ([]string, 
 		return nil, fmt.Errorf("scale set %s has no properties", name)
 	}
 
-	// Determine orchestration mode
-	var orchestrationMode armcompute.OrchestrationMode
-	if vmss.Properties.OrchestrationMode != nil {
-		orchestrationMode = *vmss.Properties.OrchestrationMode
+	if vmss.Properties.OrchestrationMode == nil {
+		return nil, fmt.Errorf("scale set %s has no orchestration mode defined", name)
 	}
+
+	orchestrationMode := *vmss.Properties.OrchestrationMode
 
 	// Route to appropriate handler based on orchestration mode
 	switch orchestrationMode {
@@ -251,7 +250,8 @@ func (client *AzureClient) extractPrivateIPsFromInterfaces(interfaces []*armnetw
 
 	var ips []string
 	for _, iface := range interfaces {
-		if iface.Properties.VirtualMachine != nil && iface.Properties.VirtualMachine.ID != nil && iface.Properties.IPConfigurations != nil {
+		// Check if the interface is attached to a VM
+		if iface.Properties != nil && iface.Properties.VirtualMachine != nil && iface.Properties.VirtualMachine.ID != nil {
 			for _, n := range iface.Properties.IPConfigurations {
 				ip := getPrimaryIPFromInterfaceIPConfiguration(n)
 				if ip != "" {
@@ -322,21 +322,6 @@ func (client *AzureClient) configure() error {
 	client.iFaceClient = iclient
 
 	return nil
-}
-
-// extractResourceNameFromID extracts the resource name from an Azure resource ID.
-// Resource ID format: /subscriptions/{subscription}/resourceGroups/{rg}/providers/{provider}/{resourceType}/{resourceName}.
-func extractResourceNameFromID(resourceID string) (string, error) {
-	parts := strings.Split(resourceID, "/")
-	if len(parts) == 0 {
-		return "", errors.New("invalid resource ID format: empty ID")
-	}
-	// The resource name is the last part of the ID
-	resourceName := parts[len(parts)-1]
-	if resourceName == "" {
-		return "", errors.New("invalid resource ID format: empty resource name")
-	}
-	return resourceName, nil
 }
 
 // GetUpstreams returns the Upstreams list.
