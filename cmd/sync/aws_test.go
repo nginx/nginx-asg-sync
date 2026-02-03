@@ -29,7 +29,7 @@ func getValidAWSConfig() *awsConfig {
 }
 
 func getInvalidAWSConfigInput() []*testInputAWS {
-	var input []*testInputAWS
+	input := make([]*testInputAWS, 0, 10)
 
 	invalidRegionCfg := getValidAWSConfig()
 	invalidRegionCfg.Region = ""

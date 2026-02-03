@@ -21,7 +21,7 @@ func getValidCommonConfig() *commonConfig {
 }
 
 func getInvalidCommonConfigInput() []*testInputCommon {
-	var input []*testInputCommon
+	input := make([]*testInputCommon, 0, 2)
 
 	invalidAPIEndpointCfg := getValidCommonConfig()
 	invalidAPIEndpointCfg.APIEndpoint = ""
