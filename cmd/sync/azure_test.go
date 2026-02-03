@@ -362,7 +362,7 @@ func getValidAzureConfig() *azureConfig {
 }
 
 func getInvalidAzureConfigInput() []*testInputAzure {
-	input := make([]*testInputAzure, 0, 10)
+	input := make([]*testInputAzure, 0, 11)
 
 	invalidSubscriptionCfg := getValidAzureConfig()
 	invalidSubscriptionCfg.SubscriptionID = ""

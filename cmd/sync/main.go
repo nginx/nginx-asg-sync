@@ -110,7 +110,7 @@ func main() {
 			ctx := context.TODO()
 
 			if upstream.Kind == "http" {
-				var upsServers []nginx.UpstreamServer
+				upsServers := make([]nginx.UpstreamServer, 0, len(ips))
 				for _, ip := range ips {
 					backend := fmt.Sprintf("%v:%v", ip, upstream.Port)
 					upsServers = append(upsServers, nginx.UpstreamServer{
@@ -136,7 +136,7 @@ func main() {
 						upstream.Name, upstream.ScalingGroup, addedAddresses, removedAddresses, updatedAddresses)
 				}
 			} else {
-				var upsServers []nginx.StreamUpstreamServer
+				upsServers := make([]nginx.StreamUpstreamServer, 0, len(ips))
 				for _, ip := range ips {
 					backend := fmt.Sprintf("%v:%v", ip, upstream.Port)
 					upsServers = append(upsServers, nginx.StreamUpstreamServer{
