@@ -134,4 +134,3 @@ jobs:
           args: ${{ github.ref_type == 'tag' && 'release' || 'build --snapshot' }} --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NGINX_GITHUB_TOKEN: ${{ secrets.NGINX_PAT }}
