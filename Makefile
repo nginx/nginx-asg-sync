@@ -2,7 +2,7 @@
 # renovate: datasource=github-tags depName=golangci/golangci-lint
 GOLANGCI_LINT_VERSION = v2.12.2
 # renovate: datasource=docker depName=goreleaser/goreleaser
-GORELEASER_VERSION = v2.15.4
+GORELEASER_VERSION = v2.16.0
 # renovate: datasource=go depName=google/go-licenses
 GO_LICENSES = v1.6.0
 
