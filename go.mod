@@ -1,6 +1,6 @@
 module github.com/nginx/nginx-asg-sync
 
-go 1.26.4
+go 1.27.1
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.22.0
